@@ -22,8 +22,9 @@ class sortby implements Comparator<Tuple2<String, Double>>{
     @Override
     public int compare(Tuple2<String, Double> o1, Tuple2<String, Double> o2) {
         // TODO Auto-generated method stub
-       if( o1._2 <=  o2._2)  return 1;
-       else return -1;
+       if( o1._2 <  o2._2)  return 1;
+       else if(o1._2 > o2._2) return -1;
+       else return 0;
         
     }
 }
@@ -46,7 +47,7 @@ public static void main(String[] args) throws Exception {
       System.exit(1);
     }
     JavaSparkContext ctx = new JavaSparkContext(args[0], "PageRank",
-      System.getenv("SPARK_HOME"), JavaSparkContext.jarOfClass(JavaPageRank.class));
+      System.getenv("SPARK_HOME"), JavaSparkContext.jarOfClass(PageRank.class));
     JavaRDD<String> lines = ctx.textFile(args[1], 1);
     JavaPairRDD<String, Iterable<String>> links = lines.mapToPair(new PairFunction<String, String, String>() {
       @Override
