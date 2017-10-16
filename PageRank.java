@@ -30,10 +30,10 @@ class sortby implements Comparator<Tuple2<String, Double>>{
 }
 
 public final class PageRank {
-  private static final Pattern SPACES = Pattern.compile("\\t");
+  private static final Pattern TAB = Pattern.compile("\\t");
 
   @SuppressWarnings("serial")
-private static class Sum implements Function2<Double, Double, Double> {
+  private static class Sum implements Function2<Double, Double, Double> {
     @Override
     public Double call(Double a, Double b) {
       return a + b;
@@ -42,8 +42,8 @@ private static class Sum implements Function2<Double, Double, Double> {
 
   @SuppressWarnings("serial")
 public static void main(String[] args) throws Exception {
-    if (args.length < 3) {
-      System.err.println("Specify arguments");
+    if (args.length < 4) {
+      System.err.println("Specify arguments master, text file , iterations , 0 for all  or 1 for universities ");
       System.exit(1);
     }
     JavaSparkContext ctx = new JavaSparkContext(args[0], "PageRank",
@@ -52,7 +52,7 @@ public static void main(String[] args) throws Exception {
     JavaPairRDD<String, Iterable<String>> links = lines.mapToPair(new PairFunction<String, String, String>() {
       @Override
       public Tuple2<String, String> call(String s) {
-        String[] parts = SPACES.split(s);
+        String[] parts = TAB.split(s);
         return new Tuple2<String, String>(parts[0], parts[1]);
       }
     }).distinct().groupByKey().cache();
@@ -90,11 +90,24 @@ public static void main(String[] args) throws Exception {
     int i = 1;
     List<Tuple2<String, Double>> sortedop = new ArrayList<Tuple2<String,Double>>(output);
     Collections.sort(sortedop, new sortby());
-    for (Tuple2<?,?> tuple :sortedop) {
-        System.out.println(i++ +")"+ tuple._1());
-        if(i == 101) break;
-    } 
-
-    System.exit(0);
+    if(args[3].equals ("0")){
+        for (Tuple2<?,?> tuple :sortedop) {
+            System.out.println(i++ +")"+ tuple._1());
+            if(i == 101) break;
+        } 
+    }
+    else {
+        for (Tuple2<?,?> tuple :sortedop) {
+            //String s = "sainath";
+            
+            if(tuple._1().toString().matches(".*(niversity|nstitute|Institution).*"))
+                System.out.println(i++ + ")"+tuple._1());
+            if( i == 101) break;
+            
+        } 
+        
+    }
+    
+    ctx.stop();
   }
 }
