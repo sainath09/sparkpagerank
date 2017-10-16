@@ -3,6 +3,7 @@ import scala.Tuple2;
 import com.google.common.collect.Iterables;
 
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.graphx.*;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
@@ -30,7 +31,7 @@ class sortby implements Comparator<Tuple2<String, Double>>{
 }
 
 public final class PageRank {
-  private static final Pattern TAB = Pattern.compile("\\t");
+  
 
   @SuppressWarnings("serial")
   private static class Sum implements Function2<Double, Double, Double> {
@@ -39,6 +40,7 @@ public final class PageRank {
       return a + b;
     }
   }
+  
 
   @SuppressWarnings("serial")
 public static void main(String[] args) throws Exception {
@@ -46,47 +48,50 @@ public static void main(String[] args) throws Exception {
       System.err.println("Specify arguments master, text file , iterations , 0 for all  or 1 for universities ");
       System.exit(1);
     }
+    Pattern TAB = Pattern.compile("\\t");
     JavaSparkContext ctx = new JavaSparkContext(args[0], "PageRank",
       System.getenv("SPARK_HOME"), JavaSparkContext.jarOfClass(PageRank.class));
     JavaRDD<String> lines = ctx.textFile(args[1], 1);
+    
     JavaPairRDD<String, Iterable<String>> links = lines.mapToPair(new PairFunction<String, String, String>() {
       @Override
       public Tuple2<String, String> call(String s) {
         String[] parts = TAB.split(s);
+        
         return new Tuple2<String, String>(parts[0], parts[1]);
       }
     }).distinct().groupByKey().cache();
 
     
-    JavaPairRDD<String, Double> ranks = links.mapValues(new Function<Iterable<String>, Double>() {
+    JavaPairRDD<String, Double> value = links.mapValues(new Function<Iterable<String>, Double>() {
       @Override
       public Double call(Iterable<String> rs) {
         return 1.0;
       }
     });
 
-    for (int current = 0; current < Integer.parseInt(args[2]); current++) {
-      JavaPairRDD<String, Double> contribs = links.join(ranks).values()
+    for (int i = 0; i < Integer.parseInt(args[2]); i++) {
+      JavaPairRDD<String, Double> graph = links.join(value).values()
         .flatMapToPair(new PairFlatMapFunction<Tuple2<Iterable<String>, Double>, String, Double>() {
           @Override
           public Iterator<Tuple2<String, Double>> call(Tuple2<Iterable<String>, Double> s) {
               
-             int urlCount = Iterables.size(s._1);
+             int ncount = Iterables.size(s._1);
              List<Tuple2<String, Double>> results = new ArrayList<Tuple2<String, Double>>();
              for (String n : s._1) {
-                (results).add(new Tuple2<String, Double>(n, s._2() / urlCount));
+                (results).add(new Tuple2<String, Double>(n, s._2() / ncount));
              }
              return results.iterator();
            }
       });
-      ranks = contribs.reduceByKey(new Sum()).mapValues(new Function<Double, Double>() {
+      value = graph.reduceByKey(new Sum()).mapValues(new Function<Double, Double>() {
         @Override
         public Double call(Double sum) {
           return 0.15 + sum * 0.85;
         }
       });
     }
-    List<Tuple2<String, Double>> output = ranks.collect();
+    List<Tuple2<String, Double>> output = value.collect();
     int i = 1;
     List<Tuple2<String, Double>> sortedop = new ArrayList<Tuple2<String,Double>>(output);
     Collections.sort(sortedop, new sortby());
